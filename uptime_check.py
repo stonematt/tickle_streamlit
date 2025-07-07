@@ -34,11 +34,11 @@ def is_valid_url(url: str) -> bool:
 
 async def check_site(playwright, site):
     """
-    Checks whether a site is up and responsive. If the page content does not
-    contain the expected string, platform-specific restart logic may be triggered.
+    Load the site URL in a browser and determine if it's up based on expected content.
+    Attempt restart logic if applicable.
 
-    :param playwright: Playwright instance.
-    :param site: Dictionary of site metadata loaded from config.
+    :param playwright: The Playwright context manager.
+    :param site: Dictionary with config metadata for the site.
     :return: None
     """
     browser = await playwright.chromium.launch()
@@ -52,15 +52,15 @@ async def check_site(playwright, site):
         log_site("info", logger, site, f"Checking {site['name']} at {site['url']}")
         await page.goto(site["url"], timeout=15000)
 
-        content = await page.content()
-        if site["must_contain"] in content:
-            log_site(
-                "info",
-                logger,
-                site,
-                f"Page contains '{site['must_contain']}'. Site is up.",
-            )
-        elif site.get("is_streamlit"):
+        # Use iframe for Streamlit apps if present, fallback to main frame otherwise
+        frame = page.frame(name="streamlitApp") or page.main_frame()
+        content = await frame.content()
+        needle = site["must_contain"]
+
+        if needle in content:
+            log_site("info", logger, site, f"Found '{needle}'. Site is up.")
+        else:
+            log_site("warning", logger, site, f"Not found: '{needle}'")
             await restart_site_if_needed(page, site)
 
     except Exception as e:
