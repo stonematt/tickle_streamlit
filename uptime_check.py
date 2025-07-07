@@ -9,6 +9,7 @@ clicked if the app is sleeping.
 import argparse
 import asyncio
 import os
+from datetime import datetime
 from urllib.parse import urlparse
 
 from playwright.async_api import async_playwright
@@ -46,42 +47,65 @@ async def check_site(playwright, site, dry_run=False):
 
     :param playwright: The Playwright context manager.
     :param site: Dictionary with config metadata for the site.
-    :return: None
+    :param dry_run: If True, skips any restart logic.
+    :return: Dict containing the final status.
     """
     browser = await playwright.chromium.launch()
     page = await browser.new_page()
     assert callable(page.frame), "page.frame has been overwritten or misused"
 
+    result = {"name": site["name"], "status": "unknown"}
+
     if not is_valid_url(site["url"]):
         log_site("error", logger, site, f"Invalid URL '{site['url']}' — skipping.")
-        return
+        result["status"] = "invalid"
+        return result
 
     try:
         log_site("info", logger, site, f"Checking {site['name']} at {site['url']}")
         await page.goto(site["url"], timeout=15000)
 
-        # Wait for iframe element and access its content frame
         iframe_element = await page.wait_for_selector('iframe[title="streamlitApp"]')
         frame = await iframe_element.content_frame()
-        await frame.wait_for_load_state(
-            "networkidle"
-        )  # ensure iframe finishes rendering
+        await frame.wait_for_load_state("networkidle")
 
         content = await frame.content()
         needle = site["must_contain"]
 
         if needle in content:
             log_site("info", logger, site, f"Found '{needle}'. Site is up.")
+            result["status"] = "up"
         else:
             log_site("warning", logger, site, f"Not found: '{needle}'")
-            await restart_site_if_needed(page, site, dry_run=dry_run)
+            if dry_run:
+                log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
+                result["status"] = "down"
+            else:
+                await restart_site_if_needed(page, site)
+                result["status"] = "restarted"
 
     except Exception as e:
         msg = str(e).splitlines()[0]
         log_site("error", logger, site, f"check failed: {msg}")
+        result["status"] = "error"
 
     finally:
         await browser.close()
+        return result
+
+
+def write_uptime_report(results, log_path="logs/uptime_report.log"):
+    """
+    Append a timestamped summary of site statuses to a report log.
+
+    :param results: List of dicts with 'name' and 'status' keys.
+    :param log_path: File path to write the report entry.
+    :return: None
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_path, "a", encoding="utf-8") as report:
+        for result in results:
+            report.write(f"{timestamp},{result['name']},{result['status']}\n")
 
 
 async def main():
@@ -94,7 +118,8 @@ async def main():
 
     async with async_playwright() as playwright:
         tasks = [check_site(playwright, site, dry_run=args.dry_run) for site in sites]
-        await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks)
+        write_uptime_report(results)
 
 
 if __name__ == "__main__":
