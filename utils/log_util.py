@@ -9,6 +9,19 @@ import logging
 import os
 
 
+def log_site(level: str, logger: logging.Logger, site: dict, message: str) -> None:
+    """
+    Logs a message with site context using the provided logger.
+
+    :param level: Logging level as string, e.g., "info", "error"
+    :param logger: Logger instance
+    :param site: Site dict from config, expected to have "name"
+    :param message: Log message string
+    """
+    name = site.get("name", "<unnamed>")
+    getattr(logger, level)(f"{name}: {message}")
+
+
 def app_logger(name, level=None, log_file=None):
     """
     Configures a logger with a specified name, format, and log level.
