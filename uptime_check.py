@@ -63,6 +63,10 @@ async def check_site(playwright, site, dry_run=False):
         # Wait for iframe element and access its content frame
         iframe_element = await page.wait_for_selector('iframe[title="streamlitApp"]')
         frame = await iframe_element.content_frame()
+        await frame.wait_for_load_state(
+            "networkidle"
+        )  # ensure iframe finishes rendering
+
         content = await frame.content()
         needle = site["must_contain"]
 
