@@ -39,9 +39,6 @@ async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) 
             await page.wait_for_load_state("networkidle")
             await page.wait_for_selector("#root", timeout=10000)
 
-            if site.get("log_raw"):
-                await log_raw_html(page, site)
-
             if dry_run:
                 log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
                 return
