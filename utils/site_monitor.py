@@ -11,15 +11,14 @@ from utils.log_util import app_logger, log_site
 logger = app_logger(__name__, log_file="logs/uptime.log")
 
 
-async def log_raw_html(page: Page, site: dict) -> None:
+def log_raw_html(html: str, site: dict) -> None:
     """
-    Dump the current page HTML to a file for inspection and log the action.
+    Dump raw HTML content to a file for inspection and log the action.
 
-    :param page: The Playwright page instance currently loaded.
+    :param html: Raw HTML content as a string.
     :param site: Dictionary with site metadata.
     :return: None
     """
-    html = await page.content()
     filename = f"logs/{site['name'].replace(' ', '_')}_raw.html"
     with open(filename, "w", encoding="utf-8") as f:
         f.write(html)

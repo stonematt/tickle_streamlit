@@ -16,7 +16,7 @@ from playwright.async_api import async_playwright
 
 from utils.config_loader import load_and_validate_config
 from utils.log_util import app_logger, log_site
-from utils.site_monitor import restart_site_if_needed
+from utils.site_monitor import restart_site_if_needed, log_raw_html
 
 parser = argparse.ArgumentParser(description="Check site uptime.")
 parser.add_argument(
@@ -68,6 +68,11 @@ async def check_site(playwright, site, dry_run=False):
         iframe_element = await page.wait_for_selector('iframe[title="streamlitApp"]')
         frame = await iframe_element.content_frame()
         await frame.wait_for_load_state("networkidle")
+
+        # Capture raw HTML before further checks
+        if site.get("log_raw"):
+            raw_html = await frame.content()
+            log_raw_html(raw_html, site)
 
         content = await frame.content()
         needle = site["must_contain"]
