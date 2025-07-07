@@ -10,6 +10,7 @@
 - ✅ Wakes sleeping Streamlit apps via the "Yes, get this app back up!" button
 - ✅ Supports `--dry-run` and per-site `log_raw` inspection
 - ✅ Smart logging with file+console output
+- ✅ Structured uptime report for tracking site status
 
 ## Usage
 
@@ -44,17 +45,30 @@ Each site in `config/sites.json` should be defined like:
 
 ## Logs
 
+### Main Log
+
 All logs are written to `logs/uptime.log` and follow this format:
 
 ```
 2025-07-07 09:01:58 - INFO - log_util: lookout: Checking lookout at https://...
 ```
 
-Raw HTML (if enabled) is saved as:
+Raw HTML (if `log_raw: true`) is saved as:
 
 ```
 logs/{site_name}_raw.html
 ```
+
+### Uptime Report
+
+A CSV-style report is written to `logs/uptime_report.log`:
+
+```
+2025-07-07 09:15:00,lookout,up
+2025-07-07 09:15:00,m1pies,restarted
+```
+
+This can be tailed or imported into a spreadsheet.
 
 ## Dependencies
 
