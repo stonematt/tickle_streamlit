@@ -35,13 +35,13 @@ async def restart_site_if_needed(page: Page, site: dict) -> None:
                 'button[data-testid="wakeup-button-owner"], button[data-testid="wakeup-button-viewer"]',
                 timeout=5000,
             )
+            logger.warning(f"{site['name']}: Wake-up button found. Clicking.")
             await page.click(
                 'button[data-testid="wakeup-button-owner"], button[data-testid="wakeup-button-viewer"]'
             )
 
-            logger.warning(f"{site['name']}: Wake-up button found. Clicking.")
-            await page.click('button[data-testid="wakeup-button-owner"]')
-        except Exception:
-            logger.error(f"{site['name']}: Wake-up button not found after timeout.")
+        except Exception as e:
+            msg = str(e).splitlines()[0]
+            logger.error(f"{site['name']}: Wake-up attempt failed: {msg}")
     else:
         logger.info(f"{site['name']}: No restart logic defined for platform.")
