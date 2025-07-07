@@ -4,7 +4,7 @@
     "url": "https://stonematt-lookout.streamlit.app/",
     "selector": "div.stApp",
     "is_streamlit": true,
-    "must_contain": "Weather Station:  lookout post"
+    "must_contain": "lookout post"
   },
   {
     "name": "m1pies",
