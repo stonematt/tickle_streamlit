@@ -18,15 +18,18 @@ from utils.config_loader import load_and_validate_config
 from utils.log_util import app_logger, log_site
 from utils.site_monitor import restart_site_if_needed, log_raw_html
 
+logger = app_logger(__name__, log_file="logs/uptime.log")
+
+CONFIG_PATH = "config/sites.json"
+
 parser = argparse.ArgumentParser(description="Check site uptime.")
 parser.add_argument(
     "--dry-run", action="store_true", help="Only check content, do not restart."
 )
+parser.add_argument(
+    "--site", help="Only check the specified site by name (matches 'name' in config)"
+)
 args = parser.parse_args()
-
-logger = app_logger(__name__, log_file="logs/uptime.log")
-
-CONFIG_PATH = "config/sites.json"
 
 
 def is_valid_url(url: str) -> bool:
@@ -38,6 +41,40 @@ def is_valid_url(url: str) -> bool:
     """
     parsed = urlparse(url)
     return all([parsed.scheme, parsed.netloc])
+
+
+async def evaluate_iframe_content(page, site, dry_run):
+    """
+    Evaluate iframe content to determine if site is up. Restart if content missing.
+
+    :param page: The Playwright page object.
+    :param site: Dictionary with site metadata.
+    :param dry_run: If True, skips restart logic.
+    :return: One of 'up', 'down', or 'restarted'
+    """
+    iframe_element = await page.wait_for_selector(
+        'iframe[title="streamlitApp"]', timeout=30000
+    )
+    frame = await iframe_element.content_frame()
+    await frame.wait_for_load_state("networkidle")
+
+    if site.get("log_raw"):
+        iframe_html = await frame.content()
+        log_raw_html(iframe_html, site, suffix="iframe")
+
+    content = await frame.content()
+    needle = site["must_contain"]
+
+    if needle in content:
+        log_site("info", logger, site, f"Found '{needle}'. Site is up.")
+        return "up"
+    elif dry_run:
+        log_site("warning", logger, site, f"Not found: '{needle}'")
+        log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
+        return "down"
+    else:
+        await restart_site_if_needed(page, site)
+        return "restarted"
 
 
 async def check_site(playwright, site, dry_run=False):
@@ -65,29 +102,12 @@ async def check_site(playwright, site, dry_run=False):
         log_site("info", logger, site, f"Checking {site['name']} at {site['url']}")
         await page.goto(site["url"], timeout=15000)
 
-        iframe_element = await page.wait_for_selector('iframe[title="streamlitApp"]')
-        frame = await iframe_element.content_frame()
-        await frame.wait_for_load_state("networkidle")
-
-        # Capture raw HTML before further checks
-        if site.get("log_raw"):
-            raw_html = await frame.content()
-            log_raw_html(raw_html, site)
-
-        content = await frame.content()
-        needle = site["must_contain"]
-
-        if needle in content:
-            log_site("info", logger, site, f"Found '{needle}'. Site is up.")
+        status = await evaluate_iframe_content(page, site, dry_run=dry_run)
+        if status == "up":
             result["status"] = "up"
         else:
-            log_site("warning", logger, site, f"Not found: '{needle}'")
-            if dry_run:
-                log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
-                result["status"] = "down"
-            else:
-                await restart_site_if_needed(page, site)
-                result["status"] = "restarted"
+            restarted = await restart_site_if_needed(page, site, dry_run)
+            result["status"] = "restarted" if restarted else "down"
 
     except Exception as e:
         msg = str(e).splitlines()[0]
@@ -120,6 +140,15 @@ async def main():
     :return: None
     """
     sites = load_and_validate_config(CONFIG_PATH)
+
+    if args.site:
+        valid_names = [s["name"] for s in sites]
+        sites = [s for s in sites if s["name"] == args.site]
+        if not sites:
+            logger.error(
+                f"'{args.site}' not found. Valid site names are: {valid_names}"
+            )
+            return
 
     async with async_playwright() as playwright:
         tasks = [check_site(playwright, site, dry_run=args.dry_run) for site in sites]

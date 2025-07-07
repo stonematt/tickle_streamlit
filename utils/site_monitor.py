@@ -11,18 +11,19 @@ from utils.log_util import app_logger, log_site
 logger = app_logger(__name__, log_file="logs/uptime.log")
 
 
-def log_raw_html(html: str, site: dict) -> None:
+def log_raw_html(html: str, site: dict, suffix: str = "raw") -> None:
     """
     Dump raw HTML content to a file for inspection and log the action.
 
     :param html: Raw HTML content as a string.
     :param site: Dictionary with site metadata.
+    :param suffix: Suffix for filename to distinguish contexts (e.g. 'raw', 'iframe').
     :return: None
     """
-    filename = f"logs/{site['name'].replace(' ', '_')}_raw.html"
+    filename = f"logs/{site['name'].replace(' ', '_')}_{suffix}.html"
     with open(filename, "w", encoding="utf-8") as f:
         f.write(html)
-    log_site("debug", logger, site, "Dumped HTML for inspection.")
+    log_site("debug", logger, site, f"Dumped HTML for inspection ({suffix}).")
 
 
 async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) -> None:
