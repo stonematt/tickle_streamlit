@@ -6,6 +6,7 @@ responsive. For Streamlit-hosted apps, a wake-up button is automatically
 clicked if the app is sleeping.
 """
 
+import argparse
 import asyncio
 import os
 from urllib.parse import urlparse
@@ -15,6 +16,12 @@ from playwright.async_api import async_playwright
 from utils.config_loader import load_and_validate_config
 from utils.log_util import app_logger, log_site
 from utils.site_monitor import restart_site_if_needed
+
+parser = argparse.ArgumentParser(description="Check site uptime.")
+parser.add_argument(
+    "--dry-run", action="store_true", help="Only check content, do not restart."
+)
+args = parser.parse_args()
 
 logger = app_logger(__name__, log_file="logs/uptime.log")
 
@@ -32,7 +39,7 @@ def is_valid_url(url: str) -> bool:
     return all([parsed.scheme, parsed.netloc])
 
 
-async def check_site(playwright, site):
+async def check_site(playwright, site, dry_run=False):
     """
     Load the site URL in a browser and determine if it's up based on expected content.
     Attempt restart logic if applicable.
@@ -43,6 +50,7 @@ async def check_site(playwright, site):
     """
     browser = await playwright.chromium.launch()
     page = await browser.new_page()
+    assert callable(page.frame), "page.frame has been overwritten or misused"
 
     if not is_valid_url(site["url"]):
         log_site("error", logger, site, f"Invalid URL '{site['url']}' — skipping.")
@@ -52,8 +60,9 @@ async def check_site(playwright, site):
         log_site("info", logger, site, f"Checking {site['name']} at {site['url']}")
         await page.goto(site["url"], timeout=15000)
 
-        # Use iframe for Streamlit apps if present, fallback to main frame otherwise
-        frame = page.frame(name="streamlitApp") or page.main_frame()
+        # Wait for iframe element and access its content frame
+        iframe_element = await page.wait_for_selector('iframe[title="streamlitApp"]')
+        frame = await iframe_element.content_frame()
         content = await frame.content()
         needle = site["must_contain"]
 
@@ -61,7 +70,7 @@ async def check_site(playwright, site):
             log_site("info", logger, site, f"Found '{needle}'. Site is up.")
         else:
             log_site("warning", logger, site, f"Not found: '{needle}'")
-            await restart_site_if_needed(page, site)
+            await restart_site_if_needed(page, site, dry_run=dry_run)
 
     except Exception as e:
         msg = str(e).splitlines()[0]
@@ -80,7 +89,7 @@ async def main():
     sites = load_and_validate_config(CONFIG_PATH)
 
     async with async_playwright() as playwright:
-        tasks = [check_site(playwright, site) for site in sites]
+        tasks = [check_site(playwright, site, dry_run=args.dry_run) for site in sites]
         await asyncio.gather(*tasks)
 
 

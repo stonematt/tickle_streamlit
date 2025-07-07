@@ -11,27 +11,40 @@ from utils.log_util import app_logger, log_site
 logger = app_logger(__name__, log_file="logs/uptime.log")
 
 
-async def restart_site_if_needed(page: Page, site: dict) -> None:
+async def log_raw_html(page: Page, site: dict) -> None:
+    """
+    Dump the current page HTML to a file for inspection and log the action.
+
+    :param page: The Playwright page instance currently loaded.
+    :param site: Dictionary with site metadata.
+    :return: None
+    """
+    html = await page.content()
+    filename = f"logs/{site['name'].replace(' ', '_')}_raw.html"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(html)
+    log_site("debug", logger, site, "Dumped HTML for inspection.")
+
+
+async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) -> None:
     """
     Attempt to restart a site if it is hosted on a known platform.
 
     :param page: The Playwright page instance currently loaded.
     :param site: A dictionary containing site metadata from config.
+    :param dry_run: If True, skip any restart actions.
     :return: None
     """
-    site_name = site.get("name", "<unnamed>")
-
     if site.get("is_streamlit"):
         try:
             await page.wait_for_load_state("networkidle")
             await page.wait_for_selector("#root", timeout=10000)
 
-            html = await page.content()
-            with open(
-                f"logs/{site_name.replace(' ', '_')}_raw.html", "w", encoding="utf-8"
-            ) as f:
-                f.write(html)
-            log_site("debug", logger, site, "Dumped HTML for inspection.")
+            await log_raw_html(page, site)
+
+            if dry_run:
+                log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
+                return
 
             await page.wait_for_selector(
                 'button[data-testid="wakeup-button-owner"], button[data-testid="wakeup-button-viewer"]',
