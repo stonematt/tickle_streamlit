@@ -49,13 +49,13 @@ Each site in `config/sites.json` should be defined like:
 
 All logs are written to `logs/uptime.log` and follow this format:
 
-```
+```log
 2025-07-07 09:01:58 - INFO - log_util: lookout: Checking lookout at https://...
 ```
 
 Raw HTML (if `log_raw: true`) is saved as:
 
-```
+```txt
 logs/{site_name}_raw.html
 ```
 
@@ -63,7 +63,7 @@ logs/{site_name}_raw.html
 
 A CSV-style report is written to `logs/uptime_report.log`:
 
-```
+```log
 2025-07-07 09:15:00,lookout,up
 2025-07-07 09:15:00,m1pies,restarted
 ```
