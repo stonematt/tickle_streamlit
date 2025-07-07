@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.log
+
+# Conda
+.env/
+.conda/
+tickle_streamlit_env.yml
+
+# Playwright
+playwright/.cache/
+playwright/.report/
+test-results/
+screenshot.png
+
+# VSCode/IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
