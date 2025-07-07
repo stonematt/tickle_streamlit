@@ -1,9 +1,9 @@
 [
   {
-    "name": "Lookout Post",
+    "name": "lookout",
     "url": "https://stonematt-lookout.streamlit.app/",
     "selector": "div.stApp",
     "is_streamlit": true,
-    "must_contain": "Archive"
+    "must_contain": "Weather Station: lookout post"
   }
 ]
