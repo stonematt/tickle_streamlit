@@ -19,7 +19,8 @@ def log_site(level: str, logger: logging.Logger, site: dict, message: str) -> No
     :param message: Log message string
     """
     name = site.get("name", "<unnamed>")
-    getattr(logger, level)(f"{name}: {message}")
+    log_fn = getattr(logger, level, logger.info)
+    log_fn(f"{name}: {message}", stacklevel=2)
 
 
 def app_logger(name, level=None, log_file=None):
