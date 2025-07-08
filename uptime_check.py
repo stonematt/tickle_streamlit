@@ -43,38 +43,57 @@ def is_valid_url(url: str) -> bool:
     return all([parsed.scheme, parsed.netloc])
 
 
-async def evaluate_iframe_content(page, site, dry_run):
+async def evaluate_iframe_content(page, site, dry_run=False):
     """
     Evaluate iframe content to determine if site is up. Restart if content missing.
 
     :param page: The Playwright page object.
     :param site: Dictionary with site metadata.
-    :param dry_run: If True, skips restart logic.
+    :param dry_run: Passed to downstream restart logic only.
     :return: One of 'up', 'down', or 'restarted'
     """
-    iframe_element = await page.wait_for_selector(
-        'iframe[title="streamlitApp"]', timeout=30000
-    )
-    frame = await iframe_element.content_frame()
-    await frame.wait_for_load_state("networkidle")
+    iframe_element = await page.query_selector('iframe[title="streamlitApp"]')
 
-    if site.get("log_raw"):
-        iframe_html = await frame.content()
-        log_raw_html(iframe_html, site, suffix="iframe")
+    if not iframe_element:
+        log_site("info", logger, site, "No iframe found — attempting restart")
+        if site.get("log_raw"):
+            try:
+                html = await page.content()
+                log_raw_html(html, site, suffix="raw_iframe")
+            except Exception as dump_err:
+                log_site(
+                    "warning", logger, site, f"failed to dump page HTML: {dump_err}"
+                )
+        return await restart_site_if_needed(page, site, dry_run=dry_run)
 
-    content = await frame.content()
-    needle = site["must_contain"]
+    try:
+        frame = await iframe_element.content_frame()
+        await frame.wait_for_load_state("networkidle")
 
-    if needle in content:
-        log_site("info", logger, site, f"Found '{needle}'. Site is up.")
-        return "up"
-    elif dry_run:
-        log_site("warning", logger, site, f"Not found: '{needle}'")
-        log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
+        content = await frame.content()
+        if site.get("log_raw"):
+            log_raw_html(content, site, suffix="iframe")
+
+        needle = site["must_contain"]
+        if needle in content:
+            log_site("info", logger, site, f"Found '{needle}'. Site is up.")
+            return "up"
+
+        log_site("warning", logger, site, f"Not found: '{needle}'. Site is down.")
         return "down"
-    else:
-        await restart_site_if_needed(page, site)
-        return "restarted"
+
+    except Exception as e:
+        msg = str(e).splitlines()[0]
+        log_site("warning", logger, site, f"Iframe load or content check failed: {msg}")
+        if site.get("log_raw"):
+            try:
+                html = await page.content()
+                log_raw_html(html, site, suffix="raw_iframe")
+            except Exception as dump_err:
+                log_site(
+                    "warning", logger, site, f"failed to dump page HTML: {dump_err}"
+                )
+        return "down"
 
 
 async def check_site(playwright, site, dry_run=False):
@@ -102,16 +121,20 @@ async def check_site(playwright, site, dry_run=False):
         log_site("info", logger, site, f"Checking {site['name']} at {site['url']}")
         await page.goto(site["url"], timeout=15000)
 
-        status = await evaluate_iframe_content(page, site, dry_run=dry_run)
-        if status == "up":
-            result["status"] = "up"
-        else:
-            restarted = await restart_site_if_needed(page, site, dry_run)
-            result["status"] = "restarted" if restarted else "down"
+        # Delegate to iframe logic
+        result["status"] = await evaluate_iframe_content(page, site, dry_run=dry_run)
 
     except Exception as e:
         msg = str(e).splitlines()[0]
         log_site("error", logger, site, f"check failed: {msg}")
+        if site.get("log_raw"):
+            try:
+                html = await page.content()
+                log_raw_html(html, site, suffix="raw_timeout")
+            except Exception as dump_err:
+                log_site(
+                    "warning", logger, site, f"failed to dump raw HTML: {dump_err}"
+                )
         result["status"] = "error"
 
     finally:
