@@ -63,9 +63,23 @@ if [[ ${#POSITIONAL[@]} -ne 1 ]]; then
 fi
 
 SCRIPT_REL="${POSITIONAL[0]}"
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-cd "$REPO_ROOT"
 
+# Resolve absolute path to script and repo root
+SCRIPT_PATH="$(realpath "$SCRIPT_REL")"
+REPO_ROOT="$(dirname "$SCRIPT_PATH")"
+
+# Walk up until .git is found
+while [ ! -d "$REPO_ROOT/.git" ] && [ "$REPO_ROOT" != "/" ]; do
+  REPO_ROOT="$(dirname "$REPO_ROOT")"
+done
+
+# Validate
+if [ ! -d "$REPO_ROOT/.git" ]; then
+  echo "Error: .git directory not found above $SCRIPT_PATH"
+  exit 1
+fi
+
+cd "$REPO_ROOT" || exit 1
 # Random sleep (jitter)
 if [[ "$SLEEP_MAX" -gt 0 ]]; then
   SLEEP_TIME=$((RANDOM % SLEEP_MAX))
