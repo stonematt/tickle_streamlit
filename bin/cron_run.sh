@@ -103,7 +103,12 @@ else
     PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
 fi
 
-SCRIPT_PATH="$REPO_ROOT/$SCRIPT_REL"
+# Handle both relative and absolute script paths
+if [[ "$SCRIPT_REL" == /* ]]; then
+    SCRIPT_PATH="$SCRIPT_REL"  # Already absolute
+else
+    SCRIPT_PATH="$REPO_ROOT/$SCRIPT_REL"  # Relative, prepend repo root
+fi
 SCRIPT_KEY="${SCRIPT_REL//\//_}"
 LOG_FILE="$REPO_ROOT/logs/cron_${SCRIPT_KEY%.*}.status"
 TIMESTAMP="$(date '+%Y-%m-%d %H:%M:%S')"
