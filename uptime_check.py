@@ -120,6 +120,10 @@ async def check_site(playwright, site, dry_run=False):
     try:
         log_site("info", logger, site, f"Checking {site['name']} at {site['url']}")
         await page.goto(site["url"], timeout=15000)
+        
+        # Wait for page to fully load and dynamic content
+        await page.wait_for_load_state("networkidle", timeout=10000)
+        await page.wait_for_timeout(3000)  # Extra wait for Streamlit to render
 
         # Delegate to iframe logic
         result["status"] = await evaluate_iframe_content(page, site, dry_run=dry_run)
