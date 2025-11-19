@@ -93,6 +93,16 @@ git pull --rebase || echo "Warning: git pull failed, continuing..."
 # Activate virtualenv
 source "$REPO_ROOT/.venv/bin/activate"
 
+# Detect Python command
+PYTHON_CMD=""
+if command -v python >/dev/null 2>&1; then
+    PYTHON_CMD="python"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_CMD="python3"
+else
+    PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+fi
+
 SCRIPT_PATH="$REPO_ROOT/$SCRIPT_REL"
 SCRIPT_KEY="${SCRIPT_REL//\//_}"
 LOG_FILE="$REPO_ROOT/logs/cron_${SCRIPT_KEY%.*}.status"
@@ -102,7 +112,7 @@ TIMESTAMP="$(date '+%Y-%m-%d %H:%M:%S')"
 mkdir -p "$REPO_ROOT/logs"
 
 {
-  python "$SCRIPT_PATH"
+  "$PYTHON_CMD" "$SCRIPT_PATH"
   echo "$TIMESTAMP SUCCESS" >>"$LOG_FILE"
 } || {
   echo "$TIMESTAMP FAIL" >>"$LOG_FILE"
