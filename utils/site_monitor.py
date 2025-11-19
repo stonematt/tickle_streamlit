@@ -26,7 +26,7 @@ def log_raw_html(html: str, site: dict, suffix: str = "raw") -> None:
     log_site("debug", logger, site, f"Dumped HTML for inspection ({suffix}).")
 
 
-async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) -> None:
+async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) -> str:
     """
     Attempt to restart a site if it is hosted on a known platform.
 
@@ -42,7 +42,7 @@ async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) 
 
             if dry_run:
                 log_site("info", logger, site, "Dry run enabled — skipping wake-up.")
-                return
+                return "dry_run"
 
             await page.wait_for_selector(
                 'button[data-testid="wakeup-button-owner"], button[data-testid="wakeup-button-viewer"]',
@@ -52,9 +52,15 @@ async def restart_site_if_needed(page: Page, site: dict, dry_run: bool = False) 
             await page.click(
                 'button[data-testid="wakeup-button-owner"], button[data-testid="wakeup-button-viewer"]'
             )
+            
+            # Wait for site to reload after wake-up
+            await page.wait_for_timeout(5000)
+            return "restarted"
 
         except Exception as e:
             msg = str(e).splitlines()[0]
             log_site("error", logger, site, f"Wake-up attempt failed: {msg}")
+            return "error"
     else:
         log_site("info", logger, site, "No restart logic defined for platform.")
+        return "no_logic"

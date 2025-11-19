@@ -64,7 +64,39 @@ async def evaluate_iframe_content(page, site, dry_run=False):
                 log_site(
                     "warning", logger, site, f"failed to dump page HTML: {dump_err}"
                 )
-        return await restart_site_if_needed(page, site, dry_run=dry_run)
+        restart_result = await restart_site_if_needed(page, site, dry_run=dry_run)
+        
+        # If wake-up was attempted, re-check for iframe
+        if restart_result == "restarted" and not dry_run:
+            log_site("info", logger, site, "Re-checking site after wake-up attempt...")
+            await page.wait_for_timeout(3000)  # Wait for site to reload
+            
+            # Try to find iframe again
+            iframe_element = await page.query_selector('iframe[title="streamlitApp"]')
+            if iframe_element:
+                try:
+                    frame = await iframe_element.content_frame()
+                    await frame.wait_for_load_state("networkidle")
+                    content = await frame.content()
+                    if site.get("log_raw"):
+                        log_raw_html(content, site, suffix="iframe_after_wakeup")
+                    
+                    needle = site["must_contain"]
+                    if needle in content:
+                        log_site("info", logger, site, f"Wake-up successful! Found '{needle}'.")
+                        return "up"
+                    else:
+                        log_site("warning", logger, site, f"Wake-up attempted but content still missing: '{needle}'.")
+                        return "down"
+                except Exception as e:
+                    msg = str(e).splitlines()[0]
+                    log_site("warning", logger, site, f"Post-wake-up iframe check failed: {msg}")
+                    return "down"
+            else:
+                log_site("warning", logger, site, "Wake-up attempted but iframe still not found.")
+                return "down"
+        
+        return restart_result
 
     try:
         frame = await iframe_element.content_frame()
