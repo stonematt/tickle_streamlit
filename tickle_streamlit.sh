@@ -13,7 +13,7 @@ print_help() {
 tickle_streamlit - Streamlit uptime monitoring CLI
 
 USAGE:
-    $(basename "$0") <command> [options]
+    $(basename "$0") [command] [options]
 
 COMMANDS:
     list                    List all configured sites
@@ -26,11 +26,11 @@ CHECK OPTIONS:
     --config <path>        Path to sites configuration file
 
 EXAMPLES:
-    $(basename "$0") list                           # List all configured sites
-    $(basename "$0") check                          # Check all sites
-    $(basename "$0") check --dry-run                # Check without restarting
-    $(basename "$0") check --site lookout           # Check specific site
-    $(basename "$0") check --site lookout --dry-run # Check specific site safely
+    $(basename "$0")                                 # Check all sites (default)
+    $(basename "$0") --dry-run                      # Check without restarting
+    $(basename "$0") --site lookout                 # Check specific site
+    $(basename "$0") list                            # List all configured sites
+    $(basename "$0") check --site lookout --dry-run  # Check specific site safely
 
 For more detailed help, run:
     $(basename "$0") <command> --help
@@ -51,9 +51,17 @@ if [[ ! -f "$SCRIPT_DIR/tickle_streamlit/__main__.py" ]]; then
 fi
 
 # Handle help command or no arguments
-if [[ $# -eq 0 ]] || [[ "$1" == "help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+if [[ $# -eq 0 ]]; then
+    # Default action: check all sites
+    cd "$SCRIPT_DIR"
+    exec "$PYTHON_CMD" -m tickle_streamlit check
+elif [[ "$1" == "help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     print_help
     exit 0
+elif [[ "$1" != "list" && "$1" != "check" ]]; then
+    # If first arg is not a command, assume it's an option for 'check'
+    cd "$SCRIPT_DIR"
+    exec "$PYTHON_CMD" -m tickle_streamlit check "$@"
 fi
 
 # Pass all arguments to the Python CLI
