@@ -1,7 +1,7 @@
 # Agent Guidelines for tickle_streamlit
 
 ## Branch Management
-- **ALWAYS work on feature/fix branches** - never commit directly to main
+- **Prefer to work on feature/fix branches** rather than main
 - **Create branches**: `git checkout -b feature/cli-management` or `git checkout -b fix/config-validation`
 - **Test thoroughly** before merging back to main
 - **Code is running remotely** - maintain backward compatibility
