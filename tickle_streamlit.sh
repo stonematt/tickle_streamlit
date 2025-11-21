@@ -18,19 +18,40 @@ USAGE:
 COMMANDS:
     list                    List all configured sites
     check                   Check site uptime
+    add                     Add a new site to configuration
+    remove                  Remove a site from configuration
+    validate                Validate configuration file
     help                    Show this help message
 
 CHECK OPTIONS:
+    [site]                 Check specific site by name
     --dry-run              Only check content, do not restart
-    --site <name>          Only check the specified site by name
+    --site <name>          Only check the specified site by name (legacy)
     --config <path>        Path to sites configuration file
+
+ADD OPTIONS:
+    <name> <url> <must_contain>    Site details (required)
+    --streamlit                    Site is a Streamlit app
+    --debug                        Enable debug logging
+    --selector <css>               Custom CSS selector
+    --dry-run                      Preview without adding
+    --interactive, -i              Interactive guided addition
+
+REMOVE OPTIONS:
+    <name>                         Site name to remove
 
 EXAMPLES:
     $(basename "$0")                                 # Check all sites (default)
     $(basename "$0") --dry-run                      # Check without restarting
-    $(basename "$0") --site lookout                 # Check specific site
+    $(basename "$0") check lookout                  # Check specific site
+    $(basename "$0") --site lookout                 # Check specific site (legacy)
     $(basename "$0") list                            # List all configured sites
-    $(basename "$0") check --site lookout --dry-run  # Check specific site safely
+    $(basename "$0") check lookout --dry-run        # Check specific site safely
+    $(basename "$0") add mysite https://example.com "Welcome" --streamlit
+    $(basename "$0") add --interactive              # Interactive guided addition
+    $(basename "$0") add mysite https://example.com "Welcome" --dry-run  # Preview before adding
+    $(basename "$0") remove mysite                   # Remove site from config
+    $(basename "$0") validate                        # Validate configuration
 
 For more detailed help, run:
     $(basename "$0") <command> --help
@@ -58,7 +79,7 @@ if [[ $# -eq 0 ]]; then
 elif [[ "$1" == "help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     print_help
     exit 0
-elif [[ "$1" != "list" && "$1" != "check" ]]; then
+elif [[ "$1" != "list" && "$1" != "check" && "$1" != "add" && "$1" != "remove" && "$1" != "validate" ]]; then
     # If first arg is not a command, assume it's an option for 'check'
     cd "$SCRIPT_DIR"
     exec "$PYTHON_CMD" -m tickle_streamlit check "$@"
