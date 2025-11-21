@@ -7,8 +7,8 @@
 - **Code is running remotely** - maintain backward compatibility
 
 ## Commands
-- **New CLI**: `python3 -m tickle_streamlit [list|check] [--dry-run] [--site <name>]`
-- **Bash wrapper**: `./tickle_streamlit.sh [options]` (defaults to 'check')
+- **New CLI**: `python3 -m tickle_streamlit [list|check|add|remove|validate] [options]`
+- **Bash wrapper**: `./tickle_streamlit.sh [command] [options]` (defaults to 'check')
 - **Legacy script**: `python uptime_check.py [--dry-run] [--site <name>]` (maintained for compatibility)
 - **Install dependencies**: `pip install -r requirements.txt && playwright install`
 - **No test framework**: Manual testing via --dry-run and --site flags
@@ -29,8 +29,16 @@
 - **Exit codes**: Return 0 for success, 1 for errors
 - **Visual feedback**: Use emojis/status indicators for user-friendly output
 - **Backward compatibility**: Never break existing uptime_check.py functionality
+- **Positional arguments**: Support intuitive syntax like `check <site-name>` alongside flag-based options
 
-## Commit Guidelines (from CONTRIBUTING.md)
+## Agent Workflow Hints
+
+### Pre-Task Commit Check
+**ALWAYS check git status before starting new work:**
+- Run `git status` to check for uncommitted changes
+- If uncommitted work exists, ask user: "I see uncommitted changes. Should I commit them before starting this new task?"
+- This prevents mixing unrelated changes and maintains clean commit history
+- Exception: User explicitly asks to continue without committing
 
 ### When to Commit
 **DO commit when:**
